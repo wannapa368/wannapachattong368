@@ -1,79 +1,93 @@
-import { defineConfig, devices } from '@playwright/test';
+// tests/example.spec.ts
+import { test, expect, Page } from '@playwright/test';
 
-/**
- * Read environment variables from file.
- * https://github.com/motdotla/dotenv
- */
-// import dotenv from 'dotenv';
-// import path from 'path';
-// dotenv.config({ path: path.resolve(__dirname, '.env') });
+/** ---------- App URL ---------- **/
+const URL = 'https://wannapa368.github.io/wannapachattong368/';
 
-/**
- * See https://playwright.dev/docs/test-configuration.
- */
-export default defineConfig({
-  testDir: './tests',
-  /* Run tests in files in parallel */
-  fullyParallel: true,
-  /* Fail the build on CI if you accidentally left test.only in the source code. */
-  forbidOnly: !!process.env.CI,
-  /* Retry on CI only */
-  retries: process.env.CI ? 2 : 0,
-  /* Opt out of parallel tests on CI. */
-  workers: process.env.CI ? 1 : undefined,
-  /* Reporter to use. See https://playwright.dev/docs/test-reporters */
-  reporter: 'html',
-  /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
-  use: {
-    /* Base URL to use in actions like `await page.goto('')`. */
-    // baseURL: 'http://localhost:3000',
+/** ---------- Bootstrapping ---------- **/
+const gotoApp = async (page: Page) => {
+  await page.goto(URL, { waitUntil: 'networkidle' });
 
-    /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
-    trace: 'on-first-retry',
-  },
+  // รอให้ Quasar root และ form แสดง
+  await expect(page.locator('#q-app')).toBeVisible({ timeout: 15000 });
+  await expect(page.locator('form')).toBeVisible({ timeout: 15000 });
+};
 
-  /* Configure projects for major browsers */
-  projects: [
-    {
-      name: 'chromium',
-      use: { ...devices['Desktop Chrome'] },
-    },
+/** ---------- Locator helpers ---------- **/
+const fieldByLabel = (page: Page, label: string) =>
+  page.locator('.q-field, .q-input').filter({ hasText: label });
 
-    {
-      name: 'firefox',
-      use: { ...devices['Desktop Firefox'] },
-    },
+const messagesOf = (page: Page, label: string) =>
+  fieldByLabel(page, label).locator('.q-field__messages').last();
 
-    {
-      name: 'webkit',
-      use: { ...devices['Desktop Safari'] },
-    },
+const nameInput   = (page: Page) => page.getByLabel('Your name');
+const ageInput    = (page: Page) => page.getByLabel('Your age');
+const submitBtn   = (page: Page) => page.getByRole('button', { name: /submit/i });
+const resetBtn    = (page: Page) => page.getByRole('button', { name: /reset|clear/i });
+const termsSwitch = (page: Page) => page.getByRole('switch', { name: /i accept/i });
 
-    /* Test against mobile viewports. */
-    // {
-    //   name: 'Mobile Chrome',
-    //   use: { ...devices['Pixel 5'] },
-    // },
-    // {
-    //   name: 'Mobile Safari',
-    //   use: { ...devices['iPhone 12'] },
-    // },
+/** ---------- Assertion helpers ---------- **/
+const expectNoErrorMessages = async (page: Page) => {
+  await expect(page.locator('.q-transition--field-message-leave-active')).toHaveCount(0);
+  await expect(
+    page.locator('.q-field__messages').filter({ hasText: /please|invalid|error/i })
+  ).toHaveCount(0);
+};
 
-    /* Test against branded browsers. */
-    // {
-    //   name: 'Microsoft Edge',
-    //   use: { ...devices['Desktop Edge'], channel: 'msedge' },
-    // },
-    // {
-    //   name: 'Google Chrome',
-    //   use: { ...devices['Desktop Chrome'], channel: 'chrome' },
-    // },
-  ],
+const NAME_EMPTY_REGEX = /please type something/i;
+const AGE_EMPTY_REGEX  = /please type (your|something) age/i;
+const AGE_NEG_REGEX    = /positive|greater than 0|invalid|please type (your|a real) age|please type something/i;
 
-  /* Run your local dev server before starting the tests */
-  // webServer: {
-  //   command: 'npm run start',
-  //   url: 'http://localhost:3000',
-  //   reuseExistingServer: !process.env.CI,
-  // },
+/** ---------- Tests ---------- **/
+test.describe('Quasar Form Input Validation', () => {
+  test.beforeEach(async ({ page }) => {
+    await gotoApp(page);
+  });
+
+  test('should validate name input', async ({ page }) => {
+    await submitBtn(page).click();
+    await expect(messagesOf(page, 'Your name')).toContainText(NAME_EMPTY_REGEX);
+
+    await nameInput(page).fill('John Doe');
+    await submitBtn(page).click();
+    await expect(messagesOf(page, 'Your name')).not.toContainText(/please|invalid|error/i);
+  });
+
+  test('should validate age input', async ({ page }) => {
+    await nameInput(page).fill('John Doe');
+    await submitBtn(page).click();
+    await expect(messagesOf(page, 'Your age')).toContainText(AGE_EMPTY_REGEX);
+
+    await ageInput(page).fill('-1');
+    await submitBtn(page).click();
+    await expect(messagesOf(page, 'Your age')).toContainText(AGE_NEG_REGEX);
+  });
+
+  test('should handle terms acceptance', async ({ page }) => {
+    await nameInput(page).fill('John Doe');
+    await ageInput(page).fill('25');
+
+    await submitBtn(page).click();
+    await expect(termsSwitch(page)).toHaveAttribute('aria-checked', 'false');
+
+    await termsSwitch(page).click();
+    await expect(termsSwitch(page)).toHaveAttribute('aria-checked', 'true');
+    await submitBtn(page).click();
+
+    await expectNoErrorMessages(page);
+  });
+
+  test('should reset form inputs', async ({ page }) => {
+    await nameInput(page).fill('John Doe');
+    await ageInput(page).fill('25');
+
+    await termsSwitch(page).click();
+    await expect(termsSwitch(page)).toHaveAttribute('aria-checked', 'true');
+
+    await resetBtn(page).click();
+
+    await expect(nameInput(page)).toHaveValue('');
+    await expect(ageInput(page)).toHaveValue('');
+    await expect(termsSwitch(page)).toHaveAttribute('aria-checked', 'false');
+  });
 });
