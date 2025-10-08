@@ -1,36 +1,83 @@
-name: Deploy Website
+name: Build, Deploy & Playwright Test (Quasar + GitHub Pages)
 
 on:
   push:
-    branches:
-      - main  # สาขาที่จะ trigger deploy
+    branches: [ "*" ]
+  pull_request:
+    branches: [ "*" ]
 
 jobs:
-  build-and-deploy:
+  build-deploy:
+    runs-on: ubuntu-latest
+    outputs:
+      deploy-url: ${{ steps.set-url.outputs.deploy-url }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build Quasar App
+        run: npm run build
+
+      - name: List build output for debug
+        run: ls -R ./dist/spa
+
+      - name: Deploy to GitHub Pages
+        id: deploy
+        uses: peaceiris/actions-gh-pages@v6
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./dist/spa
+          publish_branch: gh-pages
+
+      - name: Set deployed URL
+        id: set-url
+        run: |
+          echo "deploy-url=https://${{ github.repository_owner }}.github.io/${{ github.repository }}" >> $GITHUB_OUTPUT
+
+  playwright-test:
+    needs: build-deploy
     runs-on: ubuntu-latest
 
     steps:
-      # 1. เช็คเอา repo
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
-      # 2. ติดตั้ง Node.js
       - name: Setup Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: 20
 
-      # 3. ติดตั้ง dependencies
       - name: Install dependencies
-        run: npm install
+        run: npm ci
 
-      # 4. Build โปรเจกต์
-      - name: Build
-        run: npm run build
+      - name: Debug Node & Playwright
+        run: |
+          node -v
+          npm -v
+          npx playwright --version
+          echo "BASE_URL=$BASE_URL"
 
-      # 5. Deploy ขึ้น GitHub Pages
-      - name: Deploy to GitHub Pages
-        uses: peaceiris/actions-gh-pages@v4
+      - name: Wait for deployed app to be ready
+        run: sleep 10
+        env:
+          BASE_URL: ${{ needs.build-deploy.outputs.deploy-url }}
+
+      - name: Run Playwright tests
+        run: npx playwright test --reporter=list
+        env:
+          BASE_URL: ${{ needs.build-deploy.outputs.deploy-url }}
+
+      - name: Upload Playwright results
+        uses: actions/upload-artifact@v3
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./dist/spa  # ปรับ path ให้ตรงกับ build output ของคุณ
+          name: playwright-results
+          path: tests/playwright-report/
