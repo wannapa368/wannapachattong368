@@ -10,18 +10,25 @@
     "test": "echo \"No test specified\" && exit 0",
     "dev": "quasar dev",
     "build": "quasar build",
-    "postinstall": "quasar prepare"
+    "postinstall": "quasar prepare",
+    "deploy": "npx gh-pages -d dist/spa -b gh-pages",
+    "deploy-all": "npm run build && npm run deploy",
+    "test-playwright": "npx playwright test",
+    "build-deploy-test": "npm run build && npm run deploy && npm run test-playwright"
   },
   "dependencies": {
-    "axios": "^1.2.1",
     "@quasar/extras": "^1.16.4",
+    "axios": "^1.2.1",
     "quasar": "^2.16.0",
     "vue": "3.5.20",
     "vue-router": "^4.0.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.56.0",
     "@quasar/app-vite": "^2.1.0",
     "autoprefixer": "^10.4.2",
+    "gh-pages": "^6.3.0",
+    "playwright": "^1.56.0",
     "postcss": "^8.4.14"
   },
   "engines": {

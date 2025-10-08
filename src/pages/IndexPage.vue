@@ -1,4 +1,5 @@
 <template>
+<<<<<<< HEAD
   <q-page class="row items-center justify-center">
     <q-card style="min-width: 360px; max-width: 720px;">
       <q-card-section>
@@ -28,10 +29,19 @@
         </div>
       </q-card-section>
     </q-card>
+=======
+  <q-page class="flex flex-center">
+    <img
+      alt="Quasar logo"
+      src="~assets/quasar-logo-vertical.svg"
+      style="width: 200px; height: 200px"
+    >
+>>>>>>> test
   </q-page>
 </template>
 
 <script setup>
+<<<<<<< HEAD
 import { ref } from 'vue'
 
 const form = ref({
@@ -52,4 +62,7 @@ function resetForm () {
   form.value = { studentId: '', firstName: '', lastName: '', email: '' }
   submitted.value = false
 }
+=======
+//
+>>>>>>> test
 </script>
