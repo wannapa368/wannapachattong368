@@ -1,61 +1,36 @@
-name: CI/CD + Playwright Test
+name: Deploy Website
 
 on:
   push:
-    branches: [ "cicd" ]  # เปลี่ยนเป็น branch ของคุณ
-  workflow_dispatch:
+    branches:
+      - main  # สาขาที่จะ trigger deploy
 
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write  # เพื่อ push ไป gh-pages
 
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
+      # 1. เช็คเอา repo
+      - name: Checkout repository
+        uses: actions/checkout@v3
 
+      # 2. ติดตั้ง Node.js
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v3
         with:
           node-version: '20'
 
+      # 3. ติดตั้ง dependencies
       - name: Install dependencies
         run: npm install
 
-      - name: Build Quasar SPA
-        run: npx quasar build
+      # 4. Build โปรเจกต์
+      - name: Build
+        run: npm run build
 
+      # 5. Deploy ขึ้น GitHub Pages
       - name: Deploy to GitHub Pages
-        uses: peaceiris/actions-gh-pages@v3
+        uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: dist/spa
-
-  playwright-test:
-    runs-on: ubuntu-latest
-    needs: build-and-deploy
-    env:
-      APP_URL: 'https://<your-username>.github.io/<your-repo>/'  # แก้เป็น URL จริงของคุณ
-    steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
-      - name: Install dependencies
-        run: npm install
-
-      - name: Run Playwright Tests
-        run: npx playwright test
-
-      - name: Upload Playwright Artifacts
-        uses: actions/upload-artifact@v3
-        with:
-          name: playwright-artifacts
-          path: |
-            tests/test-results
-            playwright-report
+          publish_dir: ./dist/spa  # ปรับ path ให้ตรงกับ build output ของคุณ
