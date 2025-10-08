@@ -3,9 +3,9 @@ name: Playwright Test
 
 on:
   push:
-    branches: [ "cicd" ]
+    branches: [ "test" ]
   pull_request:
-    branches: [ "cicd" ]
+    branches: [ "test" ]
 
 jobs:
   test:
